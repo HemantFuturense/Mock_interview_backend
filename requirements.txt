@@ -33,6 +33,7 @@ python-docx
 Jinja2
 pytest
 pytest-asyncio
+matplotlib==3.10.1
 
 
 

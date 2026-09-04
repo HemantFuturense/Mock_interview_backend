@@ -1,0 +1,6 @@
+.env
+media/
+uploads/
+__pycache__/
+*.py[cod]
+scripts/

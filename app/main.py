@@ -12,6 +12,10 @@ from app.modules.sandbox.router import router as sandbox_router
 from app.modules.interview.router import router as interview_router
 from app.modules.admin.router import router as admin_router
 
+# Top-level package, not an app.modules member: question_pipeline imports it too
+# (see question_pipeline/providers/tavily_firecrawl_provider.py).
+from web_research.router import research_router
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -41,6 +45,7 @@ app.include_router(dashboard_extras_router)
 app.include_router(sandbox_router)
 app.include_router(interview_router)
 app.include_router(admin_router)
+app.include_router(research_router)
 
 
 @app.get("/", tags=["Root"])

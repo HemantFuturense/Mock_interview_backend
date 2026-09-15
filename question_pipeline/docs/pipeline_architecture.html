@@ -1,0 +1,1035 @@
+<html>
+<head>
+<style>
+    @page {
+        size: A4;
+        margin: 2.2cm 1.8cm 2.2cm 1.8cm;
+    }
+    body {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 9.5pt;
+        color: #1a1a1a;
+        line-height: 1.45;
+    }
+    h1 {
+        font-size: 22pt;
+        color: #0b3d66;
+        margin-top: 0;
+        margin-bottom: 6px;
+    }
+    h2 {
+        font-size: 15pt;
+        color: #0b3d66;
+        border-bottom: 1.5px solid #0b3d66;
+        padding-bottom: 3px;
+        margin-top: 22px;
+        margin-bottom: 8px;
+    }
+    h3 {
+        font-size: 12pt;
+        color: #14507f;
+        margin-top: 14px;
+        margin-bottom: 5px;
+    }
+    h4 {
+        font-size: 10.5pt;
+        color: #1a1a1a;
+        margin-top: 10px;
+        margin-bottom: 4px;
+    }
+    p { margin: 4px 0 8px 0; text-align: justify; }
+    ul, ol { margin: 4px 0 8px 18px; padding: 0; }
+    li { margin-bottom: 3px; }
+    code {
+        font-family: Courier, monospace;
+        font-size: 8.5pt;
+        background-color: #eef2f6;
+        color: #0b3d66;
+        padding: 1px 3px;
+    }
+    pre {
+        font-family: Courier, monospace;
+        font-size: 7.8pt;
+        background-color: #f4f6f8;
+        border: 0.5px solid #c8d2db;
+        padding: 6px 8px;
+        margin: 6px 0 10px 0;
+        line-height: 1.35;
+    }
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 6px 0 12px 0;
+        font-size: 8.5pt;
+    }
+    th {
+        background-color: #0b3d66;
+        color: #ffffff;
+        padding: 4px 6px;
+        text-align: left;
+    }
+    td {
+        border: 0.5px solid #c8d2db;
+        padding: 4px 6px;
+        vertical-align: top;
+    }
+    tr.alt { background-color: #f4f6f8; }
+    .classbox {
+        border: 0.75px solid #0b3d66;
+        background-color: #f7fafc;
+        padding: 6px 8px;
+        margin: 6px 0 10px 0;
+    }
+    .classname {
+        font-family: Courier, monospace;
+        font-weight: bold;
+        color: #0b3d66;
+        font-size: 10pt;
+    }
+    .filepath {
+        font-family: Courier, monospace;
+        font-size: 8pt;
+        color: #556677;
+    }
+    .tag {
+        font-family: Courier, monospace;
+        font-size: 7.5pt;
+        background-color: #dfeaf5;
+        color: #0b3d66;
+        padding: 1px 4px;
+        margin-right: 4px;
+    }
+    .invariant {
+        background-color: #fff4e5;
+        border: 0.5px solid #d99a3d;
+        padding: 5px 8px;
+        margin: 6px 0 10px 0;
+    }
+    .toc-line { margin: 2px 0; }
+    .toc-num { display: inline-block; width: 28px; }
+    hr { border: none; border-top: 0.75px solid #c8d2db; margin: 14px 0; }
+    .pagebreak { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<h1>Question Pipeline &mdash; Complete Architecture Reference</h1>
+<p style="font-size:10.5pt; color:#444;">
+AI Interview Question Generation Pipeline &mdash; every module, every class, every data flow, and the Postgres
+schema that backs it. Covers both the legacy single-role CLI path (<code>pipeline_runner.py</code>) and the
+production DB-authoritative rollout orchestrator (<code>orchestrator.py</code> / <code>rollout_cli.py</code>),
+including the company-research-to-RAG wiring.
+</p>
+<p style="font-size:8.5pt; color:#777;">Project: job_readiness_backend_vercel / question_pipeline &nbsp;|&nbsp; Generated: 2026-09-13</p>
+
+<hr/>
+
+<h2>Table of Contents</h2>
+<div class="toc-line"><span class="toc-num">1.</span> Purpose &amp; Scope of This System</div>
+<div class="toc-line"><span class="toc-num">2.</span> Two Operating Modes: Legacy CLI vs. Production Orchestrator</div>
+<div class="toc-line"><span class="toc-num">3.</span> Repository Map</div>
+<div class="toc-line"><span class="toc-num">4.</span> Configuration Layer &mdash; <code>config.py</code></div>
+<div class="toc-line"><span class="toc-num">5.</span> Domain Models &mdash; <code>models.py</code></div>
+<div class="toc-line"><span class="toc-num">6.</span> Provider Abstraction Layer</div>
+<div class="toc-line"><span class="toc-num">7.</span> Core Pipeline Services</div>
+<div class="toc-line"><span class="toc-num">8.</span> Cross-Cutting Infrastructure</div>
+<div class="toc-line"><span class="toc-num">9.</span> Legacy Single-Role Orchestrator &mdash; <code>pipeline_runner.py</code></div>
+<div class="toc-line"><span class="toc-num">10.</span> Production Rollout Layer</div>
+<div class="toc-line"><span class="toc-num">11.</span> Database Schema (Migrations 0001 &amp; 0002)</div>
+<div class="toc-line"><span class="toc-num">12.</span> Company Knowledge &rarr; RAG Wiring (Deep Dive)</div>
+<div class="toc-line"><span class="toc-num">13.</span> End-to-End Data Flow Walkthroughs</div>
+<div class="toc-line"><span class="toc-num">14.</span> Testing Strategy</div>
+<div class="toc-line"><span class="toc-num">15.</span> Operational Reference</div>
+<div class="toc-line"><span class="toc-num">16.</span> Key Invariants &amp; Design Rules (Glossary)</div>
+
+<div class="pagebreak"></div>
+
+<h2>1. Purpose &amp; Scope of This System</h2>
+<p>
+The question pipeline is a standalone Python package (<code>question_pipeline/</code>) inside the FastAPI backend
+that automatically produces a reusable, quality-gated bank of technical interview questions for a fixed taxonomy
+of job roles (59 roles in production, a 6-role pilot subset for testing) and, optionally, associates individual
+questions with real companies/domains as supporting metadata. It does <b>not</b> touch any legacy interview table
+(<code>interview_questions</code>, <code>pre_generated_questions</code>, <code>interview_data</code>, <code>students</code>,
+<code>student_resumes</code>, <code>session_metadata</code>, <code>admin_users</code>, <code>password_reset_tokens</code>,
+<code>programs</code>, <code>program_job_roles</code>, <code>university_batch_program</code>, <code>session_ratings</code>,
+<code>job_descriptions</code>) &mdash; everything it writes lives in 14 new, purely-additive tables created by two
+migrations.
+</p>
+<p>
+The pipeline is a five-stage assembly line for every role (and, separately, for every company profile it
+maintains): <b>Research &rarr; Synthesis &rarr; RAG Indexing &rarr; Generation &rarr; Quality Gate (validation +
+dedup) &rarr; Persistence</b>. Every stage is provider-agnostic (Gemini/OpenAI/Claude/Perplexity/Tavily+Firecrawl/
+local/mock are all interchangeable behind small ABCs), every expensive external call is wrapped in rate-limiting
+and quota/block detection, and every quality decision is fail-closed: a high LLM score can never override a
+deterministic rejection or a critical LLM-flagged failure.
+</p>
+
+<h2>2. Two Operating Modes: Legacy CLI vs. Production Orchestrator</h2>
+<p>The codebase contains two independent "drivers" over the same underlying services:</p>
+<table>
+<tr><th style="width:22%;">Aspect</th><th style="width:39%;">Legacy CLI (<code>pipeline_runner.py</code>)</th><th style="width:39%;">Production Orchestrator (<code>orchestrator.py</code>)</th></tr>
+<tr><td>Entry point</td><td><code>python -m question_pipeline.pipeline_runner --role "X" --count 20</code></td><td><code>python -m question_pipeline.rollout_cli --pilot --batch-size 2</code></td></tr>
+<tr class="alt"><td>State authority</td><td>Local JSON files under <code>question_pipeline/data/</code> (<code>state.json</code>, <code>question_bank.json</code>, <code>vector_store.json</code>, <code>validation_attempts.json</code>, <code>cost_log.json</code>)</td><td>PostgreSQL (<code>knowledge_state</code>, <code>knowledge_version_history</code>, <code>pipeline_jobs</code>, <code>questions</code> and its child tables) &mdash; the DB is authoritative</td></tr>
+<tr><td>Scope</td><td>One role at a time, or the fixed 6-role pilot (<code>config.PILOT_ROLES</code>)</td><td>Any subset of the 59-role production set (<code>config.PRODUCTION_ROLES</code>) and/or the 24-company set (<code>config.COMPANIES</code>), batched, resumable, idempotent</td></tr>
+<tr class="alt"><td>Checkpointing</td><td><code>RolePipelineState</code> in <code>state.json</code>, updated per-batch</td><td><code>pipeline_jobs</code> rows, one per (role, company, job_type), upserted through an explicit state machine</td></tr>
+<tr><td>Change detection</td><td>Source-hash compare against <code>state.json</code></td><td>Source-hash compare against DB <code>knowledge_state</code>, via <code>freshness.py</code></td></tr>
+<tr class="alt"><td>Typical use</td><td>Local development, one-off testing of a single role, the original 6-role pilot</td><td>The real 59-role/24-company rollout, run in small controlled batches</td></tr>
+</table>
+<p>
+Both drivers ultimately call the exact same core services (<code>research_service</code>, <code>synthesis_service</code>,
+<code>rag_service</code>, <code>generator_service</code>, <code>validator_service</code>) and the exact same
+<code>classify_scope()</code> function &mdash; no generation, validation, or scope logic is duplicated between them.
+
+</p>
+
+<h2>3. Repository Map</h2>
+<table>
+<tr><th style="width:34%;">Path</th><th>Role in the system</th></tr>
+<tr><td><code>config.py</code></td><td>Single source of truth for every environment-driven setting: providers, models, thresholds, cadences, the 59-role and 24-company lists.</td></tr>
+<tr class="alt"><td><code>models.py</code></td><td>All Pydantic v2 data contracts shared across every module.</td></tr>
+<tr><td><code>providers/</code></td><td>Provider abstraction layer &mdash; one ABC per capability (research/LLM/embedding/validation) plus one concrete class per real or mock backend.</td></tr>
+<tr class="alt"><td><code>research_service.py</code></td><td>Cadence-aware web research orchestration for a role or a company.</td></tr>
+<tr><td><code>synthesis_service.py</code></td><td>Turns raw research text into structured <code>KnowledgeChunk</code>s via an LLM.</td></tr>
+<tr class="alt"><td><code>rag_service.py</code></td><td>Embeds and cosine-retrieves knowledge chunks (role-level and, now, company-level).</td></tr>
+<tr><td><code>generator_service.py</code></td><td>Builds the generation prompt (role + RAG + company context) and produces candidate <code>QuestionObject</code>s.</td></tr>
+<tr class="alt"><td><code>deduplicator_service.py</code></td><td>3-tier duplicate detection: exact, normalized/Jaccard, semantic/cosine.</td></tr>
+<tr><td><code>validator_service.py</code></td><td>The Phase&nbsp;2 fail-closed Quality Gate: deterministic checks + a Gemini&rarr;OpenAI&rarr;Claude LLM rubric ladder.</td></tr>
+<tr class="alt"><td><code>governor.py</code></td><td>Rate limiting, retry/backoff, and the two pipeline-wide exception types.</td></tr>
+<tr><td><code>cost_tracker.py</code></td><td>Per-call USD cost and token accounting.</td></tr>
+<tr class="alt"><td><code>state_manager.py</code></td><td>Legacy JSON-file checkpoint store used by <code>pipeline_runner.py</code>.</td></tr>
+<tr><td><code>validation_store.py</code></td><td>Storage abstraction for validation attempts (in-memory/JSON today, Postgres-ready).</td></tr>
+<tr class="alt"><td><code>freshness.py</code></td><td>DB-backed counterpart of <code>state_manager.py</code>, used only by the production orchestrator.</td></tr>
+<tr><td><code>pipeline_runner.py</code></td><td>The legacy single-role/pilot CLI orchestrator.</td></tr>
+<tr class="alt"><td><code>db_loader.py</code></td><td>Loads local pipeline artifacts (or, for companies, DB-only research) into the migration-0001 schema.</td></tr>
+<tr><td><code>orchestrator.py</code></td><td>The production rollout orchestrator: job checkpointing, change detection, incremental generation, company research.</td></tr>
+<tr class="alt"><td><code>rollout_cli.py</code></td><td>Thin argparse CLI over <code>RolloutOrchestrator</code>.</td></tr>
+<tr><td><code>tests/</code></td><td>133 unit/integration tests (see Section&nbsp;14).</td></tr>
+<tr class="alt"><td><code>docs/</code></td><td>This document.</td></tr>
+<tr><td><code>migrations/0001_*.sql</code></td><td>13 new tables: the Knowledge layer + the reusable Question Bank layer.</td></tr>
+<tr class="alt"><td><code>migrations/0002_*.sql</code></td><td>Source URL dedup + the <code>pipeline_jobs</code> checkpoint table (1 new table).</td></tr>
+<tr><td><code>web_research/</code> (sibling package)</td><td>Pre-existing Tavily/Firecrawl HTTP clients reused (not duplicated) by <code>providers/tavily_firecrawl_provider.py</code>.</td></tr>
+</table>
+
+<h2>4. Configuration Layer &mdash; <code>config.py</code></h2>
+<div class="classbox">
+<span class="classname">is_valid_key(key) &rarr; bool</span><br/>
+Module-level helper used by <i>every</i> provider before it trusts a credential. Rejects <code>None</code>,
+non-strings, anything shorter than 8 characters, and anything containing a placeholder substring
+(<code>dummy</code>, <code>replace_with_real_key</code>, <code>placeholder</code>, <code>your_</code>, <code>todo</code>,
+<code>none</code>). This is the single check every provider's <code>_ensure_api_key()</code>/<code>_ensure_configured()</code>
+delegates to, so a half-filled-in <code>.env</code> value is caught consistently everywhere instead of via
+ad-hoc <code>"dummy" in key</code> checks that some providers used to have.
+</div>
+<div class="classbox">
+<span class="classname">class PipelineConfig</span> &nbsp;<span class="tag">singleton: config</span><br/>
+A single class whose instance (<code>config</code>) is imported everywhere. Every field is read from an
+environment variable with a sane default, so switching providers/models/thresholds never requires a code
+change. Notable groups of settings:
+<ul>
+<li><b>Paths</b>: <code>DATA_DIR</code> (redirectable via <code>QUESTION_PIPELINE_DATA_DIR</code> &mdash; this is the
+test-isolation mechanism), <code>KNOWLEDGE_DIR</code>, <code>STATE_FILE</code>, <code>COST_LOG_FILE</code>,
+<code>VECTOR_STORE_FILE</code>, <code>QUESTION_BANK_FILE</code>, <code>PILOT_REPORT_FILE</code>.</li>
+<li><b>Mode</b>: <code>MOCK_MODE</code> &mdash; when true, every provider factory returns a mock/local implementation
+and no real network call is ever made.</li>
+<li><b>Provider selection</b>: <code>RESEARCH_PROVIDER</code>, <code>LLM_PROVIDER</code>, <code>EMBEDDING_PROVIDER</code>,
+<code>VALIDATION_PROVIDER</code>, <code>FALLBACK_LLM_PROVIDER</code>, <code>ESCALATION_PROVIDER</code> (+ matching
+<code>*_MODEL</code> fields).</li>
+<li><b>API keys</b>: <code>GEMINI_API_KEY</code>, <code>PERPLEXITY_API_KEY</code>, <code>OPENAI_API_KEY</code>,
+<code>ANTHROPIC_API_KEY</code>, <code>TAVILY_API_KEY</code>, <code>FIRECRAWL_API_KEY</code> &mdash; never logged.</li>
+<li><b>Rate limits</b>: per-provider RPM caps consumed by <code>governor.py</code>.</li>
+<li><b>PRICING</b>: a nested dict of USD-per-million-token input/output cost per provider/model, consumed by
+<code>cost_tracker.py</code>.</li>
+<li><b>Dedup thresholds</b>: <code>SEMANTIC_SIMILARITY_THRESHOLD</code> (0.86), <code>NORMALIZED_OVERLAP_THRESHOLD</code> (0.85).</li>
+<li><b>Question schema constants</b>: <code>EXPERIENCE_BANDS</code>, <code>PARADIGMS</code>, <code>SCOPES</code>,
+<code>PARADIGM_BY_EXPERIENCE_BAND</code> (single source of truth shared by the generator and the validator so the
+two can never silently disagree about which paradigm a band expects), <code>EXPERIENCE_DIFFICULTY_BOUNDS</code>
+(a calibration envelope, not a rigid formula &mdash; role-specific ceilings are left to the LLM rubric).</li>
+<li><b>Quality gate thresholds</b>: <code>VALIDATION_PASS_SCORE</code> (0.70), <code>VALIDATION_UNCERTAIN_LOW/HIGH</code>
+(0.60/0.75 &mdash; the escalation band), <code>DIFFICULTY_DIMENSION_CONSISTENCY_TOLERANCE</code> (4.0).</li>
+<li><b>Cadences</b>: <code>ROLE_RESEARCH_CADENCE_DAYS</code> (30), <code>COMPANY_RESEARCH_CADENCE_DAYS</code> (14).</li>
+<li><b>Taxonomy</b>: <code>PILOT_ROLES</code> (6), <code>PRODUCTION_ROLES</code> (59, exact list), <code>COMPANIES</code>
+(24, exact list) &mdash; companies are always contextual metadata, never a primary identity.</li>
+<li><b>Company-RAG</b>: <code>COMPANY_CONTEXT_MIN_SIMILARITY</code> (0.35) &mdash; the cosine-similarity floor that keeps
+company context evidence-driven rather than injected (see Section&nbsp;12).</li>
+</ul>
+At import time, <code>config.DATA_DIR</code> and <code>config.KNOWLEDGE_DIR</code> are created on disk if missing.
+</div>
+
+<h2>5. Domain Models &mdash; <code>models.py</code></h2>
+<p>All Pydantic v2 <code>BaseModel</code> subclasses. These are the contracts every service passes between each other; none of them do I/O themselves.</p>
+
+<div class="classbox"><span class="classname">QuestionObject</span><br/>
+The canonical shape of one interview question, end to end &mdash; from a raw LLM candidate through validation to a
+persisted DB row. Fields: <code>question</code>, <code>role</code>, <code>experience_band</code>, an overall
+<code>difficulty</code> (1&ndash;10) plus the <b>7 difficulty dimensions</b> (<code>technical_depth</code>,
+<code>problem_complexity</code>, <code>architecture_complexity</code>, <code>troubleshooting</code>,
+<code>business_complexity</code>, <code>decision_making</code>, <code>leadership_ownership</code>, each 1&ndash;10),
+<code>question_type</code>, <code>paradigm</code> (one of the 5 paradigms), <code>mandatory_skills</code>,
+<code>scope</code> (UNIVERSAL/DOMAIN/COMPANY), <code>domains</code>, <code>applicable_companies</code>,
+<code>source_references</code> (provenance strings, including RAG chunk citations), <code>knowledge_version</code>,
+<code>generated_at</code>.</div>
+
+<div class="classbox"><span class="classname">ResearchOutput</span><br/>
+The result of one research call, for a role <i>or</i> a company (when <code>company</code> is set, <code>role</code>
+holds the company name too &mdash; the convention every company-only artifact in this system follows).
+Carries <code>technologies</code>, <code>engineering_practices</code>, <code>responsibilities</code>,
+<code>interview_topics</code>, <code>trends</code>, the full <code>raw_summary</code> text, <code>source_references</code>,
+a <code>source_hash</code> (sha256 of the raw text &mdash; the change-detection key everywhere in the system),
+<code>knowledge_version</code>, and <code>actual_provider</code> (recorded explicitly so it's always knowable which
+provider genuinely produced this data, never assumed from config).</div>
+
+<div class="classbox"><span class="classname">KnowledgeChunk</span><br/>
+One embeddable unit of synthesized knowledge. <code>role: str</code> is required (non-Optional) and
+<code>company: Optional[str]</code> defaults to <code>None</code>. For a standalone company knowledge chunk,
+<code>role</code> holds the company name (since neither the Pydantic model nor the DB column allow a null role) and
+<code>company</code> is the real discriminator used everywhere retrieval needs to tell role-chunks and
+company-chunks apart. Also carries <code>topic</code>, <code>text</code>, <code>embedding</code>,
+<code>embedding_model</code>, <code>source_reference</code>, <code>knowledge_version</code>.</div>
+
+<div class="classbox"><span class="classname">VectorStoreData</span><br/>
+The on-disk container for <code>vector_store.json</code>: <code>embedding_provider</code>, <code>embedding_model</code>,
+and the full <code>chunks: List[KnowledgeChunk]</code>. Versioned by provider+model so <code>RAGService</code> can
+detect an incompatible embedding space and invalidate the whole store rather than mixing vectors from two models.</div>
+
+<div class="classbox"><span class="classname">ValidationResult</span><br/>
+A simple pass/fail/score/tier record; superseded in the actual pipeline by the richer <code>QualityGateResult</code>
+below but kept as part of the abstract <code>ValidationProvider</code> interface.</div>
+
+<div class="classbox"><span class="classname">QualityGateResult</span><br/>
+The structured, auditable output of the Phase&nbsp;2 quality gate. Fields: <code>approved</code>, <code>quality_score</code>,
+<code>critical_failure</code>, <code>rejection_reasons</code> (list of machine-readable reason codes),
+<code>check_results</code> (the LLM's own per-dimension true/false checks), <code>validation_tier</code>
+(<code>primary_gemini</code>/<code>fallback_gpt</code>/<code>escalation_claude</code>), <code>validation_provider</code>,
+<code>validation_model</code>, <code>reasoning</code>, <code>uncertain</code>.
+<div class="invariant"><b>Fail-closed contract:</b> <code>approved</code> must never be <code>True</code> when
+<code>critical_failure</code> is <code>True</code>. Enforced in <code>ValidatorService._merge()</code> in code, and
+redundantly at the database level by <code>chk_qva_fail_closed</code> once migration 0001 is applied.</div>
+Method <code>to_attempt_record(role, candidate_question_text, question_id)</code> converts this in-process result
+into the exact row shape <code>question_validation_attempts</code> expects.</div>
+
+<div class="classbox"><span class="classname">ValidationAttemptRecord</span><br/>
+An exact mirror of one <code>question_validation_attempts</code> row &mdash; one instance per validation attempt,
+approved <i>or</i> rejected. <code>id</code> is <code>None</code> until a store assigns one.</div>
+
+<div class="classbox"><span class="classname">CostRecord</span><br/>
+One logged API call: <code>provider</code>, <code>model</code>, <code>task</code>, <code>input_tokens</code>,
+<code>output_tokens</code>, <code>estimated_cost</code>, <code>timestamp</code>, <code>status</code>.</div>
+
+<div class="classbox"><span class="classname">RolePipelineState</span><br/>
+The legacy JSON-file checkpoint record for one role or company (used by <code>state_manager.py</code>):
+<code>status</code> (PENDING/RUNNING/COMPLETED/WAITING_FOR_QUOTA/BLOCKED/FAILED/RETRY/SKIPPED),
+<code>current_batch</code>/<code>total_batches</code>, <code>target_questions</code>, <code>accepted_questions_count</code>,
+cadence timestamps, <code>knowledge_version</code>, <code>source_hash</code>, <code>reason</code>.</div>
+
+<div class="classbox"><span class="classname">PilotQualityReport</span><br/>
+The comprehensive end-of-pilot audit object <code>pipeline_runner.run_pilot()</code> produces: totals
+(generated/accepted/rejected/duplicates/validation_failures), distributions (scope/difficulty/experience),
+per-role <code>role_correctness</code>, full API usage and cost breakdowns by provider and by task, and any
+errors encountered. Saved to <code>pilot_quality_report.json</code>.</div>
+
+<div class="pagebreak"></div>
+
+<h2>6. Provider Abstraction Layer</h2>
+<p>
+Every external dependency (web research, LLM generation, embeddings) is accessed only through a small ABC.
+Concrete providers are chosen purely by config/env vars via three factory functions, so swapping Gemini for
+OpenAI, or a real provider for its mock, never touches calling code.
+</p>
+
+<h3>6.1 <code>providers/base.py</code> &mdash; the contracts</h3>
+<div class="classbox"><span class="classname">extract_json_object(text) &rarr; Any</span> &nbsp;(module function, shared by every LLM provider)<br/>
+Tries, in order: (1) parse as-is; (2) strip a leading/trailing &#96;&#96;&#96;json code fence and parse; (3)
+<code>json.JSONDecoder().raw_decode()</code> to parse only the <i>first</i> complete JSON value and discard trailing
+content. Step 3 is what fixed a real production bug ("Extra data: line 81 column 1") where Gemini appended stray
+content after a complete, valid JSON object &mdash; plain <code>json.loads()</code> refuses to parse when trailing
+content exists, silently losing an entire generation batch. This function never invents or repairs field content,
+only extracts what is verbatim present.</div>
+<div class="classbox"><span class="classname">LLMResult</span><br/>
+Plain wrapper for one LLM call's output: <code>text</code>, parsed <code>data</code>, <code>input_tokens</code>,
+<code>output_tokens</code>, <code>model</code>, <code>provider</code>.</div>
+<div class="classbox">
+<span class="classname">ResearchProvider (ABC)</span>: <code>provider_name</code>, <code>research_role(role)</code>,
+<code>research_company(company)</code> &mdash; both return a <code>ResearchOutput</code>.<br/>
+<span class="classname">LLMProvider (ABC)</span>: <code>provider_name</code>, <code>generate_json(prompt, system_prompt, task_name)</code>,
+<code>generate_text(...)</code>.<br/>
+<span class="classname">EmbeddingProvider (ABC)</span>: <code>provider_name</code>, <code>embed_texts(texts, task_name)</code>,
+<code>embed_query(text, task_name)</code>.<br/>
+<span class="classname">ValidationProvider (ABC)</span>: <code>validate_question(question_data, role_context)</code> &mdash;
+declared for completeness; the real pipeline's validation ladder is implemented directly in
+<code>ValidatorService</code>, not through this interface.
+</div>
+
+<h3>6.2 <code>providers/factory.py</code> &mdash; selection logic</h3>
+<p>Three functions, each following the same pattern: if <code>config.MOCK_MODE</code>, always return the mock/local
+implementation (guaranteeing zero real API calls in tests); otherwise dispatch on the relevant config string.</p>
+<table>
+<tr><th>Function</th><th>Real-mode dispatch</th></tr>
+<tr><td><code>get_research_provider()</code></td><td><code>perplexity</code> &rarr; <code>PerplexityResearchProvider</code>; <code>tavily_firecrawl</code> &rarr; <code>TavilyFirecrawlResearchProvider</code>; <code>gemini</code> &rarr; explicitly raises <code>ProviderBlockedException</code> (not yet enabled); anything else &rarr; blocked with a clear message.</td></tr>
+<tr class="alt"><td><code>get_llm_provider(provider_override=None)</code></td><td><code>gemini</code>&rarr;<code>GeminiLLMProvider</code>, <code>openai</code>&rarr;<code>OpenAILLMProvider</code>, <code>anthropic</code>&rarr;<code>ClaudeLLMProvider</code>, else defaults to Gemini. <code>provider_override</code> is how the validator's fallback/escalation tiers request a <i>specific</i> provider regardless of the primary <code>LLM_PROVIDER</code> setting.</td></tr>
+<tr><td><code>get_embedding_provider()</code></td><td><code>gemini</code>&rarr;<code>GeminiEmbeddingProvider</code>, <code>local</code>&rarr;<code>LocalEmbeddingProvider</code>, else blocked.</td></tr>
+<tr class="alt"><td><code>get_validation_provider()</code></td><td>Thin alias for <code>get_llm_provider(config.VALIDATION_PROVIDER)</code>.</td></tr>
+</table>
+
+<h3>6.3 Gemini &mdash; <code>providers/gemini_provider.py</code></h3>
+<div class="classbox"><span class="classname">GeminiLLMProvider</span><br/>
+Primary generation/synthesis/validation LLM. <code>generate_json()</code> configures the SDK once, calls
+<code>genai.GenerativeModel(...).generate_content()</code> off the event loop via
+<code>loop.run_in_executor</code>, requests <code>response_mime_type="application/json"</code>, extracts JSON via
+<code>extract_json_object()</code>, estimates or reads real token usage, and logs cost via
+<code>cost_tracker.record_usage()</code>. Every call is routed through <code>governor.execute_with_retry()</code>
+for throttling/backoff. <code>generate_text()</code> is the same shape without the JSON response format.</div>
+<div class="classbox"><span class="classname">GeminiEmbeddingProvider</span><br/>
+Configurable-model embedding provider. On first use it calls <code>_verify_model()</code>, which lists the
+account's actually-available embedding models and silently substitutes the configured model for the first
+available one if the configured name isn't currently active &mdash; a defensive measure against a dead/renamed
+model breaking the whole pipeline. Batches <code>embed_texts()</code> in chunks of 20. Both methods log usage
+through <code>cost_tracker</code> and go through the governor.</div>
+
+<h3>6.4 OpenAI &mdash; <code>providers/openai_provider.py</code></h3>
+<div class="classbox"><span class="classname">OpenAILLMProvider</span><br/>
+Tier-2 fallback validation provider (model/provider fully configurable via
+<code>FALLBACK_LLM_PROVIDER</code>/<code>FALLBACK_LLM_MODEL</code>). Calls
+<code>POST /v1/chat/completions</code> with <code>response_format={"type":"json_object"}</code> via
+<code>httpx.AsyncClient</code>, mapping HTTP 429&rarr;<code>QuotaExhaustedException</code> and 401/403&rarr;
+<code>ProviderBlockedException</code> before the governor's generic retry logic even runs.</div>
+
+<h3>6.5 Claude &mdash; <code>providers/claude_provider.py</code></h3>
+<div class="classbox"><span class="classname">ClaudeLLMProvider</span><br/>
+Tier-3 escalation validation provider (<code>ESCALATION_PROVIDER</code>/<code>ESCALATION_MODEL</code>). Calls
+Anthropic's Messages API directly (<code>x-api-key</code> header, <code>anthropic-version: 2023-06-01</code>),
+concatenates all <code>text</code> content blocks from the response, then runs the result through the same
+<code>extract_json_object()</code> used everywhere else.</div>
+
+<h3>6.6 Perplexity &mdash; <code>providers/perplexity_provider.py</code></h3>
+<div class="classbox"><span class="classname">PerplexityResearchProvider</span><br/>
+The original research provider: a single Sonar chat-completion call per role/company, asked directly for a
+structured interview-intelligence dossier. Returns Perplexity's own <code>citations</code> as
+<code>source_references</code>. Still fully supported and selectable via <code>RESEARCH_PROVIDER=perplexity</code>,
+but the pipeline has since moved to Tavily+Firecrawl as its primary real research stack.</div>
+
+<h3>6.7 Tavily + Firecrawl &mdash; <code>providers/tavily_firecrawl_provider.py</code></h3>
+<div class="classbox"><span class="classname">TavilyFirecrawlResearchProvider</span><br/>
+The current real research stack: <b>discovery</b> via Tavily search, then <b>extraction</b> via Firecrawl scrape,
+built on top of the pre-existing <code>web_research.clients.TavilySearchClient</code> /
+<code>FirecrawlScrapeClient</code> (reused, not reimplemented). Internal flow (<code>_research()</code>):
+<ol>
+<li>Tavily search for up to 5 candidate sources; raises if none are found &mdash; never fabricates a dossier from nothing.</li>
+<li>Rank by Tavily's own <code>relevance_score</code>, keep the top 3.</li>
+<li>Firecrawl-scrape those 3 URLs.</li>
+<li>Build the final source set: fully-Firecrawl-extracted sources first; sources Firecrawl couldn't reach but that
+still have a Tavily snippet are kept as an explicit, honest degraded fallback (never fabricated text); if
+<i>every</i> source fails extraction and has no snippet either, raises rather than inventing content.</li>
+<li><code>raw_summary</code> is assembled verbatim from the retrieved source text; <code>source_hash</code> is
+sha256 of that summary &mdash; this is the value every change-detection check in the system compares.</li>
+</ol>
+<code>research_role(role)</code> and <code>research_company(company)</code> both call the same
+<code>_research()</code> with a role- or company-flavored query string; the company variant stamps
+<code>company=company</code> onto the resulting <code>ResearchOutput</code> via <code>model_copy(update=...)</code>.</div>
+
+<h3>6.8 Local embeddings &mdash; <code>providers/local_provider.py</code></h3>
+<div class="classbox"><span class="classname">LocalEmbeddingProvider</span><br/>
+Deterministic, zero-cost, zero-network embedding used whenever <code>MOCK_MODE=true</code> or
+<code>EMBEDDING_PROVIDER=local</code>. <code>_text_to_vector()</code> hashes each token (and each 3-gram of each
+token) into one of <code>dim</code> (default 128) buckets with a sign derived from the hash, then L2-normalizes
+the result &mdash; a crude but stable and reproducible bag-of-hashed-features embedding, good enough for
+exercising RAG/dedup logic in tests without a real embedding call.</div>
+
+<h3>6.9 Mocks &mdash; <code>providers/mock_provider.py</code></h3>
+<div class="classbox"><span class="classname">MockResearchProvider</span><br/>
+Returns a fixed, realistic-looking <code>ResearchOutput</code> instantly, for both roles and companies &mdash; no network call.</div>
+<div class="classbox"><span class="classname">MockLLMProvider</span><br/>
+The workhorse of the whole test suite. Branches on <code>task_name</code>: for <code>"synthesis"</code> returns 4
+canned knowledge modules; for <code>"validation*"</code> returns a fixed high-passing score; otherwise it parses
+<code>role</code>/<code>experience_band</code>/<code>paradigm</code>/<code>target_scope</code> straight out of the
+prompt text via regex and returns a full set of hand-curated, realistic candidate questions from
+<code>ROLE_BAND_QUESTIONS</code> (a large literal dictionary of 20 pre-written, role- and band-specific questions
+per pilot role) so mock-mode integration tests still exercise realistic-looking difficulty/skill/scope data
+instead of placeholder text.</div>
+<div class="classbox"><span class="classname">MockEmbeddingProvider</span> = <code>LocalEmbeddingProvider</code> (direct alias, not a subclass).</div>
+
+<div class="pagebreak"></div>
+
+<h2>7. Core Pipeline Services</h2>
+
+<h3>7.1 <code>research_service.py</code></h3>
+<div class="classbox"><span class="classname">ResearchService</span> &nbsp;<span class="tag">singleton: research_service</span><br/>
+<b><code>execute_research(role, force=False)</code></b> &mdash; the role-level entry point used by the legacy CLI path.
+Checks <code>state_manager.is_role_due_for_research()</code> (skips on cadence unless forced), calls
+<code>provider.research_role(role)</code>, catches <code>QuotaExhaustedException</code>/<code>ProviderBlockedException</code>
+and records them into <code>state_manager</code> before re-raising, compares the new <code>source_hash</code> against
+the stored one (skip if unchanged), then writes the research JSON to
+<code>knowledge_base/{slug}_research.json</code> and updates <code>state_manager</code> with the new cadence window.<br/>
+<b><code>execute_company_research(company)</code></b> &mdash; the company-level counterpart used by the production
+orchestrator. Cadence/hash gating for companies is entirely the orchestrator's responsibility (via
+<code>freshness.py</code>, DB-authoritative) done <i>before</i> this is called, so this method always executes
+unconditionally when invoked &mdash; it calls <code>provider.research_company(company)</code> and writes
+<code>knowledge_base/company_{slug}_research.json</code>.</div>
+
+<h3>7.2 <code>synthesis_service.py</code></h3>
+<div class="classbox"><span class="classname">SynthesisService</span> &nbsp;<span class="tag">singleton: synthesis_service</span><br/>
+<code>synthesize(research: ResearchOutput) &rarr; List[KnowledgeChunk]</code> asks the configured LLM to compress a
+research dossier into 4&ndash;6 distinct "knowledge modules" (topic + content), falling back to a fixed 3-chunk
+split of the raw summary if the LLM returns nothing usable. Each resulting <code>KnowledgeChunk</code> is stamped
+<code>role=research.role</code> &mdash; which, critically, is exactly the company name for a company
+<code>ResearchOutput</code>, since nothing here needs to know or care whether the input came from a role or a
+company. Persists to <code>knowledge_base/{slug}_synthesized.json</code>.</div>
+
+<h3>7.3 <code>rag_service.py</code></h3>
+<div class="classbox"><span class="classname">RAGService</span> &nbsp;<span class="tag">singleton: rag_service</span><br/>
+Owns the in-memory + on-disk (<code>vector_store.json</code>) list of every indexed <code>KnowledgeChunk</code>, and
+all cosine-similarity retrieval.
+<ul>
+<li><b><code>_load()</code>/<code>save()</code></b>: on load, if the stored <code>embedding_provider</code>/<code>embedding_model</code>
+differ from the currently-configured ones, the entire store is invalidated (cleared) rather than mixing incompatible
+embedding spaces.</li>
+<li><b><code>index_chunks(chunks)</code></b>: embeds all chunk texts in one batch call, replaces any chunk sharing an
+existing <code>chunk_id</code>, appends the rest, persists.</li>
+<li><b><code>clear_role_chunks(role)</code></b>: used by <code>--force</code> reruns to wipe only one role's chunks.</li>
+<li><b><code>_cosine_rank(query_arr, pool)</code></b> / <b><code>_embed_normalized_query(query)</code></b>: the shared,
+L2-normalized cosine-ranking core used identically by both retrieval methods below, so they can never drift out
+of sync.</li>
+<li><b><code>retrieve_context(role, experience_band, paradigm, top_k=3)</code></b>: role-only retrieval. Filters to
+chunks with <code>company is None</code> and a matching <code>role</code> (falling back to any role-chunk if none
+match this exact role); this <code>company is None</code> guard is explicit defense-in-depth so a company chunk can
+never leak into role-only retrieval even though it technically shares the <code>role</code> column's storage slot.</li>
+<li><b><code>retrieve_company_context(role, experience_band, paradigm, companies=None, top_k=1)</code></b> &mdash;
+added for the company-RAG feature; see Section&nbsp;12 for the full design rationale.</li>
+</ul>
+</div>
+
+<h3>7.4 <code>generator_service.py</code></h3>
+<div class="classbox"><span class="classname">GeneratorService</span> &nbsp;<span class="tag">singleton: generator_service</span><br/>
+<b><code>_generate_json_with_bounded_retry(prompt, role, experience_band)</code></b>: calls the LLM, and on exactly
+one <code>json.JSONDecodeError</code> retries the identical prompt once more (never repairs or edits content) &mdash;
+this is the second layer of defense (after <code>extract_json_object</code>) against the "Extra data" malformed-JSON
+failure mode observed in a real pilot; <code>QuotaExhaustedException</code>/<code>ProviderBlockedException</code>
+propagate immediately, never retried here.<br/>
+<b><code>generate_batch_for_band(role, experience_band, count, target_scope, domain=None)</code></b> is the main
+entry point. It: resolves the <code>paradigm</code> for this band from <code>config.PARADIGM_BY_EXPERIENCE_BAND</code>;
+retrieves up to 2 role-context chunks and up to 1 company-context chunk via <code>rag_service</code>; assembles a
+detailed prompt containing the role invariance rule, target parameters, the merged RAG context (with a
+<code>[Company Context -- ...]</code> block appended only when one was actually retrieved), explicit
+scope-classification rules for the LLM to follow, and calibration guidance per experience band (with concrete
+AVOID/PREFER lists for the 0&ndash;1yr band to stop trivial/definition-only questions); calls the bounded-retry
+generator; force-overwrites <code>role</code>/<code>experience_band</code>/<code>paradigm</code>/
+<code>source_references</code>/<code>knowledge_version</code>/<code>generated_at</code> on every returned item
+(role invariance is never left to the LLM's discretion) before constructing each <code>QuestionObject</code>.</div>
+
+<h3>7.5 <code>deduplicator_service.py</code></h3>
+<div class="classbox"><span class="classname">DeduplicatorService</span> &nbsp;<span class="tag">singleton: deduplicator_service</span><br/>
+3-tier duplicate detection, cheapest check first:
+<ol>
+<li><b>Exact match</b>: case/whitespace-normalized string equality.</li>
+<li><b>Normalized overlap</b>: <code>token_jaccard_similarity()</code> over stopword-stripped token sets, rejecting
+at &ge;<code>NORMALIZED_OVERLAP_THRESHOLD</code> (0.85).</li>
+<li><b>Semantic cosine similarity</b>: embeds the candidate and every bank item (caching bank embeddings in
+<code>_cached_embeddings</code> across calls) and rejects at &ge;<code>SEMANTIC_SIMILARITY_THRESHOLD</code> (0.86).
+On an embedding-call exception, logs a warning and falls back to the already-completed normalized check rather
+than crashing.</li>
+</ol>
+Also exports <code>normalize_text()</code> and <code>token_jaccard_similarity()</code> as standalone helpers.</div>
+
+<h3>7.6 <code>validator_service.py</code> &mdash; the Phase&nbsp;2 Quality Gate</h3>
+<p>The single most important correctness component in the system. Every candidate question passes through here
+before it can reach the approved bank.</p>
+<div class="classbox"><span class="classname">ValidatorService</span> &nbsp;<span class="tag">singleton: validator_service</span>
+<h4>Deterministic checks (no LLM, cannot be argued with)</h4>
+<table>
+<tr><th>Method</th><th>Rejects when&hellip;</th></tr>
+<tr><td><code>_check_role_invariance</code></td><td><code>q.role</code> doesn't exactly match the expected role</td></tr>
+<tr class="alt"><td><code>_check_difficulty_band</code></td><td><code>difficulty</code> falls outside <code>EXPERIENCE_DIFFICULTY_BOUNDS[band]</code></td></tr>
+<tr><td><code>_check_paradigm</code></td><td><code>paradigm</code> doesn't match <code>PARADIGM_BY_EXPERIENCE_BAND[band]</code></td></tr>
+<tr class="alt"><td><code>_check_scope</code></td><td><code>scope</code> isn't one of UNIVERSAL/DOMAIN/COMPANY</td></tr>
+<tr><td><code>_check_dimension_consistency</code></td><td>overall <code>difficulty</code> diverges from the mean of the 7 dimensions by more than the tolerance (4.0)</td></tr>
+<tr class="alt"><td><code>_check_duplicate</code> (async)</td><td><code>deduplicator_service.check_duplicate()</code> flags a match against the existing bank</td></tr>
+<tr><td><code>_retrieve_rag_context</code> (async)</td><td>zero RAG chunks are retrievable at all &rarr; <code>insufficient_rag_grounding</code></td></tr>
+</table>
+<h4>LLM rubric ladder (Gemini &rarr; OpenAI &rarr; Claude)</h4>
+<p><code>_build_prompt()</code> hands the LLM the candidate's full data plus the retrieved RAG context and asks it
+to score 12 explicit dimensions (role_correctness, technical_correctness, experience_seniority_fit,
+difficulty_fit, clarity, real_interview_relevance, reasoning_depth, no_hallucination, grounded_in_research,
+not_trivial, correct_paradigm, correct_dimensions), returning a score, a pass/fail, an <code>uncertain</code> flag,
+and a list of <code>critical_failures</code> reason codes. <code>_run_llm_tier()</code> executes one tier and
+normalizes its output (treating any exception as a fail-closed rejection, never a guess). <code>_merge()</code> is
+where the fail-closed contract is enforced in code: <code>approved = (not critical_failure) and passed and not
+uncertain</code> &mdash; a critical failure (deterministic <i>or</i> LLM-flagged) makes approval impossible
+regardless of score.</p>
+<p><code>validate_question(candidate, existing_bank, expected_role)</code> is the public entry point:</p>
+<ol>
+<li>Run all deterministic checks (once) and retrieve RAG context.</li>
+<li>Always run Tier&nbsp;1 (Gemini) &mdash; even when a deterministic check already failed, so the audit trail always
+has an LLM opinion. If deterministic checks failed, return immediately (nothing for a second opinion to resolve).</li>
+<li>If Tier&nbsp;1 is confident (not <code>uncertain</code>), return its result.</li>
+<li>Otherwise escalate to Tier&nbsp;2 (fallback provider); if still uncertain, escalate to Tier&nbsp;3 (escalation provider).</li>
+<li>If Tier&nbsp;3 is <i>still</i> uncertain, the result is force-rejected with
+<code>unresolved_uncertainty_after_full_ladder</code> &mdash; an unresolved "maybe" is never approved.</li>
+<li>If Tier&nbsp;2/3 are unreachable (missing credentials, quota exhausted), Tier&nbsp;1's own uncertain result is
+<i>not</i> trusted as a fallback approval &mdash; it is force-rejected with
+<code>escalation_unavailable_uncertain_result</code>. This is a deliberate strengthening: an unconfirmed shaky
+score is a rejection, never an approval.</li>
+</ol>
+</div>
+
+<div class="pagebreak"></div>
+
+<h2>8. Cross-Cutting Infrastructure</h2>
+
+<h3>8.1 <code>governor.py</code></h3>
+<div class="classbox">
+<span class="classname">QuotaExhaustedException</span> / <span class="classname">ProviderBlockedException</span><br/>
+The two exception types every provider and service uses to signal, respectively, "the provider's quota/rate limit
+is exhausted" and "the provider cannot run at all (bad/missing credentials, forbidden)". Both carry
+<code>provider</code>, <code>model</code>, <code>message</code>. Every layer of the pipeline treats these as
+first-class control flow &mdash; never silently swallowed, always propagated up to whatever checkpointing layer
+(state_manager or pipeline_jobs) needs to pause safely.<br/><br/>
+<span class="classname">RateLimitGovernor</span> &nbsp;<span class="tag">singleton: governor</span><br/>
+<code>throttle(provider)</code> sleeps just enough to respect that provider's configured RPM before a call.
+<code>execute_with_retry(provider, model, func, ..., max_retries=3)</code> wraps a call with jittered exponential
+backoff, inspecting the exception message to distinguish a transient 429/quota condition (backs off, then raises
+<code>QuotaExhaustedException</code> after the final retry) from an auth/permission failure (raises
+<code>ProviderBlockedException</code> immediately, no retry) from a generic transient error (retried with a
+smaller fixed backoff).</div>
+
+<h3>8.2 <code>cost_tracker.py</code></h3>
+<div class="classbox"><span class="classname">CostTracker</span> &nbsp;<span class="tag">singleton (via __new__): cost_tracker</span><br/>
+<code>record_usage(provider, model, task, input_tokens, output_tokens, status)</code> looks up per-million-token
+pricing from <code>config.PRICING</code>, computes an exact cost, appends a <code>CostRecord</code>, and persists
+the whole list to <code>cost_log.json</code> after every single call (so a crash mid-run never loses cost history).
+<code>get_summary()</code> aggregates total cost, cost-by-provider, cost-by-task, and token/call counts by provider
+&mdash; this is what <code>PilotQualityReport.estimated_api_cost</code> is built from.</div>
+
+<h3>8.3 <code>state_manager.py</code></h3>
+<div class="classbox"><span class="classname">StateManager</span> &nbsp;<span class="tag">singleton: state_manager</span><br/>
+The legacy JSON-file (<code>state.json</code>) checkpoint store keyed by role/company name, holding one
+<code>RolePipelineState</code> per key. <code>get_role_state()</code>/<code>update_role_state()</code> (partial
+field updates, always re-saves), <code>mark_waiting_for_quota()</code>/<code>mark_blocked()</code> (thin wrappers
+over <code>update_role_state</code>), <code>reset_role_state()</code> (used by <code>--force</code>),
+<code>is_role_due_for_research()</code> (cadence check), <code>is_hash_unchanged()</code> (change detection),
+<code>list_all_states()</code> (used by <code>--status</code>). This class is untouched by the production
+orchestrator work &mdash; it keeps serving the legacy single-role CLI path exactly as before.</div>
+
+<h3>8.4 <code>validation_store.py</code></h3>
+<div class="classbox">
+<span class="classname">FailClosedViolation(ValueError)</span> &mdash; raised by <code>_assert_fail_closed_invariants()</code>
+when a caller tries to record an attempt that would violate the fail-closed contract in code, mirroring the DB's
+own <code>chk_qva_*</code> CHECK constraints as defense-in-depth even before the schema exists.<br/><br/>
+<span class="classname">ValidationAttemptStore (ABC)</span>: <code>record()</code>, <code>list_for_role()</code>,
+<code>list_for_question()</code>.<br/><br/>
+<span class="classname">InMemoryValidationAttemptStore</span>: the store actually used by <code>pipeline_runner.py</code>
+today. Appends immediately (no batching) and, if given a <code>persist_path</code>, rewrites the whole
+<code>validation_attempts.json</code> file after every <code>record()</code> call &mdash; this per-candidate
+durability is what makes mid-batch quota-exhaustion checkpointing meaningful (everything recorded before the
+failure is already durable).<br/><br/>
+<span class="classname">PostgresValidationAttemptStore</span>: a fully-implemented, ready-to-swap-in real
+implementation against <code>question_validation_attempts</code>, deliberately <b>not</b> the default anywhere
+today and not exercised by any test &mdash; wiring it in when desired is a one-line change
+(<code>QuestionPipelineRunner.validation_store = PostgresValidationAttemptStore(...)</code>). It never
+pre-validates beyond what the DB itself enforces; a raised <code>CheckViolation</code> on an invalid row is the
+intended failure mode, not a bug to hide.</div>
+
+<h3>8.5 <code>freshness.py</code></h3>
+<div class="classbox">
+<span class="classname">bump_version(current) &rarr; str</span> (module function) &mdash; <code>v1.0&rarr;v1.1</code>,
+<code>v1.9&rarr;v1.10</code>, <code>None</code>/unparseable&rarr;<code>v1.0</code>/<code>v1.1</code>.<br/><br/>
+<span class="classname">KnowledgeFreshnessTracker</span><br/>
+The DB-backed mirror of <code>state_manager.py</code>'s cadence/hash logic, used exclusively by the production
+orchestrator, reading/writing <code>knowledge_state</code> (current pointer, updated in place) and
+<code>knowledge_version_history</code> (append-only ledger) instead of a JSON file.
+<code>get_state(role, company=None)</code>, <code>is_due(role, company=None)</code> (role cadence 30d, company
+cadence 14d), <code>is_hash_unchanged()</code>, <code>record_no_change()</code> (refreshes the freshness timestamp
+without bumping the version or touching the question bank), <code>record_change()</code> (bumps
+<code>current_knowledge_version</code> in <code>knowledge_state</code> <i>and</i> appends an immutable row to
+<code>knowledge_version_history</code>, so every prior knowledge version stays inspectable forever), and
+<code>mark_status()</code> (mirrors <code>mark_waiting_for_quota</code>/<code>mark_blocked</code>, DB-side).</div>
+
+<div class="pagebreak"></div>
+
+<h2>9. Legacy Single-Role Orchestrator &mdash; <code>pipeline_runner.py</code></h2>
+<div class="classbox"><span class="classname">QuestionPipelineRunner</span> &nbsp;<span class="tag">singleton: pipeline_runner</span><br/>
+Loads/saves <code>question_bank.json</code> directly (<code>_load_question_bank</code>/<code>_save_question_bank</code>),
+and owns an <code>InMemoryValidationAttemptStore</code> by default.
+<ul>
+<li><b><code>clear_role_questions(role)</code></b> / RAG's <code>clear_role_chunks(role)</code>: the surgical,
+role-scoped reset used by <code>--force</code>.</li>
+<li><b><code>print_diagnostics(role, force)</code></b>: prints mode/provider/model/fallback-and-escalation-tier
+readiness at the start of every run, without ever printing a secret value.</li>
+<li><b><code>validate_prerequisites(role)</code></b>: in real (non-mock) mode, checks that every credential the
+configured research/LLM/embedding providers actually need is present and non-placeholder <i>before</i> any paid
+call is made; on any gap, marks the role BLOCKED and raises immediately.</li>
+<li><b><code>classify_scope(candidate, target_scope)</code></b>: the same function documented in Section&nbsp;12
+below &mdash; shared verbatim with the production orchestrator via direct import, never duplicated.</li>
+<li><b><code>run_role_pipeline(role, target_questions=20, force=False)</code></b>: the full single-role pipeline.
+Skips immediately if already COMPLETED with enough questions (unless forced). On <code>force</code>, resets state
++ bank + RAG chunks for that role only. Runs Research&rarr;Synthesis&rarr;RAG-indexing only when starting from
+batch 0 (a resume skips straight to generation). For each of the 5 experience bands (in order, with the batch
+index deciding target_scope: band 1&rarr;DOMAIN, band 4&rarr;COMPANY, else UNIVERSAL), generates a batch, then
+for every candidate: classifies scope, runs it through the quality gate, and immediately records the attempt
+(approved or rejected) &mdash; this per-candidate durability is the checkpointing guarantee: a
+<code>QuotaExhaustedException</code> on candidate N+1 leaves 1..N already safely persisted. Checkpoints
+<code>current_batch</code>/<code>accepted_questions_count</code> after every batch. Final status is COMPLETED if
+&ge;70% of the target was reached, else PARTIAL.</li>
+<li><b><code>run_pilot(force=False)</code></b>: runs <code>run_role_pipeline</code> for each of the 6
+<code>PILOT_ROLES</code> in sequence, halting safely (not erroring) the moment any role reports
+WAITING_FOR_QUOTA/BLOCKED, then builds and saves a full <code>PilotQualityReport</code>
+(<code>_build_pilot_report</code>/<code>_save_pilot_report</code>) from whatever was accepted.</li>
+</ul>
+CLI (<code>__main__</code>): <code>--pilot</code>, <code>--role NAME --count N</code>, <code>--force</code>,
+<code>--resume</code> (identical to <code>--pilot</code> today &mdash; per-role checkpointing already makes resume
+automatic), <code>--status</code> (prints <code>state_manager.list_all_states()</code> + <code>cost_tracker.get_summary()</code>).
+</div>
+
+<h2>10. Production Rollout Layer</h2>
+
+<h3>10.1 <code>db_loader.py</code></h3>
+<div class="classbox"><span class="classname">LoadReport</span> (dataclass) &mdash; every counter one call to the loader can produce:
+inserted/already-present counts for questions, question_companies/domains/skills/sources/embeddings,
+validation_attempts, research_documents/chunks/sources, plus <code>inserted_question_ids</code> and
+<code>errors</code>.<br/><br/>
+<span class="classname">QuestionBankLoader</span><br/>
+Loads local pipeline artifacts (or, for a company, DB-only research artifacts) into the 13 migration-0001 tables.
+Writes <i>only</i> to those tables &mdash; contains no SQL referencing any legacy table. One Postgres transaction
+per call: any failure rolls back the entire load.
+<ul>
+<li><b><code>load_role(role, question_bank, validation_attempts, since=None)</code></b> (async): computes real
+embeddings for every candidate-new question <i>before</i> opening the DB transaction (no network I/O inside a
+transaction), then inside one transaction: loads research/knowledge via
+<code>_load_research_and_knowledge()</code>, inserts each question via <code>_load_question()</code>
+(<code>ON CONFLICT (role, question_text_normalized) DO NOTHING</code> &mdash; idempotent by construction), and for
+newly-inserted questions only, loads relations (<code>_load_question_relations</code>) and the embedding
+(<code>_load_question_embedding</code>); finally loads validation attempts scoped to <code>since</code> so a
+repeated load never double-logs the same run's attempts.</li>
+<li><b><code>load_company_research(company)</code></b> (sync): the company-only counterpart added for the
+company-RAG feature (Section&nbsp;12) &mdash; loads only research/knowledge (no questions/embeddings/validation
+attempts) for a standalone company profile.</li>
+<li><b><code>_load_question(cur, q, report)</code></b>: the idempotent question insert with a SELECT fallback to
+recover the existing row's id on conflict.</li>
+<li><b><code>_load_question_relations(cur, qid, q, chunk_id_to_pk, report)</code></b>: inserts
+<code>question_companies</code>/<code>question_domains</code>/<code>question_skills</code> rows, and
+<code>question_sources</code> provenance rows &mdash; parsing a <code>"RAG Chunk: &lt;id&gt; | ..."</code>
+reference back to a real <code>research_chunks.id</code> (falling back to a direct DB lookup if that chunk wasn't
+loaded earlier in <i>this specific call</i>, so provenance still resolves correctly across separate incremental
+loads) or, failing that, storing the raw reference string.</li>
+<li><b><code>_load_question_embedding(cur, qid, emb, report)</code></b>: <code>ON CONFLICT (question_id,
+embedding_model) DO NOTHING</code>.</li>
+<li><b><code>_load_validation_attempts(...)</code></b>: logs every attempt (approved and rejected), linking
+<code>question_id</code> only for approved ones whose normalized text matches an inserted question.</li>
+<li><b><code>_load_vector_store_chunk_embeddings(role=None, company=None)</code></b>: reads
+<code>vector_store.json</code> filtered by role <i>or</i> by company (mutually exclusive), for attaching real
+embedding vectors to <code>research_chunks</code> rows.</li>
+<li><b><code>_load_research_and_knowledge(cur, role, report, company=None)</code></b>: the shared core for both
+<code>load_role()</code> and <code>load_company_research()</code>. When <code>company</code> is set, reads
+<code>company_{slug}_research.json</code>/<code>{slug}_synthesized.json</code> instead of the role-named files, and
+stores each resulting <code>research_chunks</code> row with <code>role=company</code> (the NOT-NULL-safe slot)
+and <code>company=company</code> (the real discriminator) &mdash; see Section&nbsp;12. Also upserts
+<code>research_sources</code> idempotently via <code>ON CONFLICT (url_normalized) DO NOTHING</code> (migration
+0002), and, for the role-only path, syncs <code>knowledge_state</code> from the legacy <code>state.json</code>.</li>
+</ul>
+Module-level helpers: <code>slugify()</code>, <code>normalize_question_text()</code> (mirrors the DB's own
+generated column exactly), <code>vector_literal()</code> (formats a Python float list as a pgvector/halfvec
+literal string).
+</div>
+
+<h3>10.2 <code>orchestrator.py</code></h3>
+<p>Introduces <b>no new</b> research/synthesis/generation/validation/dedup logic &mdash; it purely coordinates the
+existing services against DB-authoritative state instead of local files.</p>
+<div class="classbox"><span class="classname">UnitResult</span> (dataclass) &mdash; the uniform return shape of every
+orchestrator operation: <code>role</code>, <code>company</code>, <code>job_type</code>, <code>status</code>,
+<code>reason</code>, <code>metrics</code>.</div>
+<div class="classbox"><span class="classname">PipelineJobStore</span><br/>
+Thin read/write wrapper around <code>pipeline_jobs</code> (migration 0002). <code>upsert(role, company, job_type,
+status, reason, metrics, mark_started, mark_completed)</code> is a single idempotent
+<code>INSERT ... ON CONFLICT (role, COALESCE(company,''), job_type) DO UPDATE</code> &mdash; always safe to call
+repeatedly for the same logical unit as it progresses through its state machine. <code>get()</code>,
+<code>list_all(roles=None)</code> (used by <code>--status</code>).</div>
+<div class="classbox"><span class="classname">synthesize_and_index_company_research(company, research_output)</span>
+(module function, async) &mdash; synthesizes a company <code>ResearchOutput</code> (reusing
+<code>synthesis_service.synthesize()</code> verbatim) and stamps <code>chunk.company = company</code> explicitly on
+every resulting chunk before indexing into <code>rag_service</code>. See Section&nbsp;12.</div>
+<div class="classbox"><span class="classname">fetch_existing_bank_from_db(db_config, role)</span> (module function)
+&mdash; reconstructs a dedup-usable <code>List[QuestionObject]</code> from the DB's <i>current</i> approved bank for
+a role. This is what makes semantic dedup during a refresh DB-authoritative rather than dependent on local
+file/process memory.</div>
+<div class="classbox"><span class="classname">RolloutOrchestrator</span><br/>
+Owns a <code>PipelineJobStore</code>, a <code>KnowledgeFreshnessTracker</code>, and a <code>QuestionBankLoader</code>.
+<ul>
+<li><b><code>get_pending_roles(roles)</code></b>: a role is pending unless its last <code>ROLE_GENERATION</code> job
+was COMPLETED/SKIPPED_NO_CHANGE <i>and</i> it isn't due again per <code>freshness.is_due()</code>.</li>
+<li><b><code>process_role(role, dry_run=False)</code></b>: the main per-role state machine (see the full walkthrough
+in Section&nbsp;13.2). Every transition is checkpointed to <code>pipeline_jobs</code> before/after the work it
+describes, so a crash mid-role leaves an inspectable, resumable status. On unchanged research content,
+short-circuits to <code>SKIPPED_NO_CHANGE</code> without touching the question bank. On changed content: bumps
+the knowledge version, synthesizes + indexes RAG, then generates a <b>full pilot-sized batch on a role's first
+run</b> or a <b>small top-up batch</b> (<code>REFRESH_TOP_UP_QUESTIONS_PER_ROLE</code>, default 8) on a refresh,
+validating and deduping every candidate against the DB's current bank (via <code>fetch_existing_bank_from_db</code>
+plus whatever was already approved earlier in this same run), then loads only the newly-approved questions.
+Quota/blocked mid-generation triggers <code>_load_partial()</code> so whatever was already approved before the
+interruption is never lost.</li>
+<li><b><code>process_company_research(company, dry_run=False)</code></b>: the company-level state machine; see
+Section&nbsp;12.4 for the full walkthrough.</li>
+<li><b><code>run_batch(roles, batch_size, dry_run=False)</code></b>: processes up to <code>batch_size</code> pending
+roles, stopping the batch (not erroring) the moment any role reports WAITING_FOR_QUOTA/BLOCKED &mdash; every other
+pending role stays untouched and safe to resume in a later invocation.</li>
+</ul>
+</div>
+
+<h3>10.3 <code>rollout_cli.py</code></h3>
+<p>Thin argparse CLI over <code>RolloutOrchestrator</code>. Key flags: <code>--pilot</code> (6 roles),
+<code>--roles "A,B"</code> (explicit, validated against the 59-role set), <code>--all-roles</code> (must be
+explicit, never implied), <code>--companies "A,B"</code> / <code>--all-companies</code> (validated against the
+24-company set &mdash; the only entry point that actually triggers <code>process_company_research()</code>),
+<code>--batch-size N</code> (applies independently to roles and companies), <code>--dry-run</code> (zero API calls,
+zero DB writes), <code>--status</code> (prints current <code>pipeline_jobs</code> rows and exits). Refuses to run a
+non-dry-run batch under <code>MOCK_MODE=true</code>, and refuses if the real research/LLM keys aren't valid.
+Roles and companies can be combined in one invocation, each processed as its own independent job type.</p>
+
+<div class="pagebreak"></div>
+
+<h2>11. Database Schema (Migrations 0001 &amp; 0002)</h2>
+<p>Both migrations are purely additive, wrapped in a single transaction, and every <code>CREATE</code> is
+<code>IF NOT EXISTS</code> (safe to re-run). Neither references any of the 13 pre-existing legacy application
+tables. Embeddings use <code>halfvec(3072)</code> (not the plain <code>vector</code> type, which caps indexable
+dimensions at 2000) with HNSW cosine indexes, matching the verified 3072-dim output of
+<code>gemini-embedding-2</code>.</p>
+
+<h3>11.1 Migration 0001 &mdash; Knowledge Layer + Reusable Question Bank (13 tables)</h3>
+<table>
+<tr><th style="width:24%;">Table</th><th>Purpose &amp; key constraints</th></tr>
+<tr><td><code>research_sources</code></td><td>One row per web source (URL). Separate <code>discovery_provider</code>/<code>extraction_provider</code> columns since Tavily (discovery) and Firecrawl (extraction) are frequently different services.</td></tr>
+<tr class="alt"><td><code>research_documents</code></td><td>One row per research run for a role or company (maps to <code>ResearchOutput</code>). Insert-only by convention &mdash; a refresh creates a new row.</td></tr>
+<tr><td><code>research_document_sources</code></td><td>Many-to-many join: which sources fed which document.</td></tr>
+<tr class="alt"><td><code>research_chunks</code></td><td>Embedded knowledge chunks (replaces <code>vector_store.json</code> as the DB-authoritative form). <code>role TEXT NOT NULL</code>, <code>company TEXT</code> nullable, <code>embedding halfvec(3072)</code>, HNSW index. <code>CHECK</code> ensures embedding/model/provider are filled in together or not at all.</td></tr>
+<tr><td><code>knowledge_state</code></td><td>Current cadence/status pointer per (role, company) &mdash; the DB analogue of <code>state.json</code>. Unique on <code>(role, COALESCE(company,''))</code>, updated in place.</td></tr>
+<tr class="alt"><td><code>knowledge_version_history</code></td><td><b>Append-only</b> ledger of every knowledge_state transition &mdash; never updated/deleted, so prior versions are always inspectable.</td></tr>
+<tr><td><code>questions</code></td><td>Canonical reusable questions. One row per question regardless of how many companies/domains reference it. <code>question_text_normalized</code> is a generated column; <code>UNIQUE(role, question_text_normalized)</code>. 7 difficulty dimensions + overall <code>difficulty</code>, each <code>CHECK BETWEEN 1 AND 10</code>. <code>paradigm</code>/<code>scope</code>/<code>experience_band</code> are all <code>CHECK</code>-constrained to their exact allowed value sets.</td></tr>
+<tr class="alt"><td><code>question_companies</code></td><td>Many-to-many: which companies a question applies to. <code>company_name</code> is free text (no canonical companies master table exists anywhere in this database).</td></tr>
+<tr><td><code>question_domains</code></td><td>Many-to-many: business/technology domains.</td></tr>
+<tr class="alt"><td><code>question_skills</code></td><td>Many-to-many: mandatory/associated skills.</td></tr>
+<tr><td><code>question_sources</code></td><td>Provenance: links a question to the research chunk/document/raw citation that justifies it. Partial unique indexes prevent double-linking the same chunk/document/reference to the same question.</td></tr>
+<tr class="alt"><td><code>question_embeddings</code></td><td>Semantic-dedup embeddings per question, keyed by <code>(question_id, embedding_model)</code> so re-embedding with a new model never destroys history.</td></tr>
+<tr><td><code>question_validation_attempts</code></td><td>Append-only audit log of <i>every</i> validation attempt, approved and rejected. <code>chk_qva_fail_closed CHECK (NOT (critical_failure AND approved))</code> and <code>chk_qva_approved_has_question CHECK (NOT (approved AND question_id IS NULL))</code> enforce the fail-closed contract at the database level &mdash; it is physically impossible to store a row that violates it.</td></tr>
+</table>
+
+<h3>11.2 Migration 0002 &mdash; Source Dedup + Orchestration Checkpointing</h3>
+<table>
+<tr><th style="width:24%;">Change</th><th>Purpose</th></tr>
+<tr><td><code>research_sources.url_normalized</code> (generated column) + unique index</td><td>Collapses trivial URL variants (scheme, trailing slash, #fragment &mdash; query strings deliberately preserved) so re-inserting a known source is a safe <code>ON CONFLICT DO NOTHING</code> no-op instead of accumulating duplicates. A one-time <code>DO $$ ... $$</code> cleanup block collapsed real duplicate rows found in production before the unique index was added, repointing <code>research_document_sources</code> links so no provenance was lost.</td></tr>
+<tr class="alt"><td><code>pipeline_jobs</code> (new table)</td><td>One current-state row per (role, company, job_type) unit for the production orchestrator. <code>job_type CHECK IN ('ROLE_RESEARCH','COMPANY_RESEARCH','ROLE_GENERATION')</code>; <code>status CHECK</code> across the 13-state lifecycle (PENDING&rarr;RESEARCHING&rarr;RESEARCHED&rarr;SYNTHESIZING&rarr;KNOWLEDGE_UPDATED&rarr;GENERATING&rarr;VALIDATING&rarr;LOADING&rarr;COMPLETED, or SKIPPED_NO_CHANGE/WAITING_FOR_QUOTA/BLOCKED/FAILED). Unique on <code>(role, COALESCE(company,''), job_type)</code> &mdash; always safe to upsert.</td></tr>
+</table>
+
+<div class="pagebreak"></div>
+
+<h2>12. Company Knowledge &rarr; RAG Wiring (Deep Dive)</h2>
+<p>This is the most recently added capability. Before it existed, <code>execute_company_research()</code> produced
+real company research but that knowledge was never actually consumed by question generation &mdash; a documented
+gap. The fix wires company knowledge into the exact same evidence-driven retrieval mechanism role knowledge
+already used, <b>without</b> a schema change and <b>without</b> ever injecting the full 24-company list into a
+prompt.</p>
+
+<h3>12.1 The storage trick: reusing <code>role</code> for company-only chunks</h3>
+<p><code>KnowledgeChunk.role: str</code> (Pydantic) is required, and <code>research_chunks.role TEXT NOT NULL</code>
+(migration 0001) forbids a null role at the DB level too. Rather than a schema migration, a standalone company
+chunk stores the <b>company name in the <code>role</code> slot</b> (exactly the convention
+<code>knowledge_state</code>/<code>research_documents</code> already used for company-only research), while
+<code>company</code> (nullable everywhere) is the actual discriminator every retrieval path checks explicitly.
+<code>rag_service.retrieve_context()</code> filters on <code>c.company is None</code> in <i>both</i> its primary
+match and its fallback branch, as defense-in-depth &mdash; a company chunk can never leak into role-only retrieval
+regardless of what ended up in its <code>role</code> field.</p>
+
+<h3>12.2 How company knowledge reaches RAG</h3>
+<pre>
+process_company_research(company)
+    -> research_service.execute_company_research(company)      [real Tavily+Firecrawl call]
+    -> synthesize_and_index_company_research(company, output)
+         -> synthesis_service.synthesize(output)                [chunk.role = company, from ResearchOutput.role]
+         -> stamp chunk.company = company explicitly
+         -> rag_service.index_chunks(chunks)                    [embeds + persists to vector_store.json]
+    -> db_loader.load_company_research(company)                 [persists to research_documents/research_chunks, DB-authoritative]
+</pre>
+
+<h3>12.3 How relevance is decided (never a fixed list)</h3>
+<p><code>rag_service.retrieve_company_context(role, experience_band, paradigm, companies=None, top_k=1)</code>:
+builds a candidate pool of every indexed chunk with <code>company</code> set (optionally restricted to an explicit
+<code>companies</code> list), embeds a query string, ranks the pool by the exact same
+<code>_cosine_rank()</code> core role retrieval uses, and returns only chunks scoring &ge;
+<code>config.COMPANY_CONTEXT_MIN_SIMILARITY</code> (0.35). A company whose knowledge doesn't actually relate to the
+role/band/paradigm being generated simply never clears the bar &mdash; this is what keeps the mechanism
+evidence-driven <i>structurally</i>, not by hardcoding an allow-list. <code>top_k=1</code> keeps it strictly
+supplementary. <code>generator_service.generate_batch_for_band()</code> merges any hit into the prompt as an
+explicitly optional <code>[Company Context -- &lt;company&gt;, topic: &lt;topic&gt;]</code> block, with an
+accompanying rule telling the LLM it is not an instruction to write a company-specific question &mdash; a
+UNIVERSAL/DOMAIN-targeted question with company context present should still end up UNIVERSAL/DOMAIN unless the
+question's actual content genuinely requires that company.</p>
+
+<h3>12.4 Company research state machine (<code>orchestrator.process_company_research</code>)</h3>
+<pre>
+is_due(company, company)?  [freshness.py, 14-day cadence]
+    no  -> pipeline_jobs: SKIPPED_NO_CHANGE ("within cadence window") -- nothing touched
+    yes -> pipeline_jobs: RESEARCHING
+           -> execute_company_research(company)
+           -> compare new source_hash to knowledge_state.source_hash
+                unchanged -> record_no_change(); pipeline_jobs: SKIPPED_NO_CHANGE -- no synthesis, no RAG index, no DB load
+                changed   -> bump_version(); record_change() [+ append knowledge_version_history row]
+                             -> pipeline_jobs: KNOWLEDGE_UPDATED
+                             -> synthesize_and_index_company_research()
+                             -> db_loader.load_company_research()
+                             -> pipeline_jobs: COMPLETED, metrics={chunks_inserted: N}
+</pre>
+<p>Scope classification is completely unaffected by any of this: <code>pipeline_runner.classify_scope()</code> only
+ever looks at a candidate's own <code>applicable_companies</code>/<code>scope</code> as produced by the LLM &mdash;
+company context reaching the prompt as evidence never forces COMPANY or DOMAIN scope by itself.</p>
+
+<div class="pagebreak"></div>
+
+<h2>13. End-to-End Data Flow Walkthroughs</h2>
+
+<h3>13.1 Legacy CLI run for one role (first run, no prior state)</h3>
+<pre>
+pipeline_runner.run_role_pipeline("Machine Learning Engineer", target_questions=20)
+  -> validate_prerequisites()                         [credential check, real mode only]
+  -> research_service.execute_research(role)          [-> Tavily+Firecrawl or Perplexity -> ResearchOutput]
+  -> synthesis_service.synthesize(research_output)    [-> 4-6 KnowledgeChunks via LLM]
+  -> rag_service.index_chunks(chunks)                 [-> embedded + saved to vector_store.json]
+  for band in ["0-1","1-2","3-5","5-8","8+"]:
+      target_scope = UNIVERSAL / DOMAIN (band 2) / COMPANY (band 5)
+      generator_service.generate_batch_for_band(role, band, count, target_scope)
+          -> rag_service.retrieve_context()  + retrieve_company_context()
+          -> LLM generate_json()  -> List[QuestionObject] candidates
+      for each candidate:
+          candidate.scope = pipeline_runner.classify_scope(candidate, target_scope)
+          gate_result = validator_service.validate_question(candidate, question_bank, expected_role=role)
+              -> deterministic checks -> deduplicator_service -> rag_service.retrieve_context()
+              -> Gemini (Tier1) -> [OpenAI (Tier2)] -> [Claude (Tier3)] if uncertain
+          if approved: append to question_bank.json; else: log rejection reason
+          validation_store.record(attempt)             [durable per-candidate checkpoint]
+      state_manager.update_role_state(current_batch=..., accepted_questions_count=...)
+  final status = COMPLETED (>=70% of target) or PARTIAL
+</pre>
+
+<h3>13.2 Production orchestrator run for one role (refresh with changed knowledge)</h3>
+<pre>
+RolloutOrchestrator.process_role("Machine Learning Engineer")
+  freshness.is_due(role)?  [DB knowledge_state, 30-day cadence]
+    -> yes: pipeline_jobs: RESEARCHING
+       research_service.execute_research(role, force=True)
+       -> pipeline_jobs: RESEARCHED
+       compare new source_hash vs knowledge_state.source_hash
+         -> changed: pipeline_jobs: SYNTHESIZING
+            synthesis_service.synthesize() + rag_service.index_chunks()
+            bump_version(); freshness.record_change()  [+ knowledge_version_history row]
+            pipeline_jobs: KNOWLEDGE_UPDATED
+            target_count = REFRESH_TOP_UP_QUESTIONS_PER_ROLE (8)  [full pilot size only on first-ever run]
+            pipeline_jobs: GENERATING
+            existing_bank = fetch_existing_bank_from_db(role)     [DB-authoritative dedup context]
+            for band in EXPERIENCE_BANDS:
+                candidates = generator_service.generate_batch_for_band(...)
+                pipeline_jobs: VALIDATING
+                for cand: classify_scope() -> validator_service.validate_question(cand, existing_bank+approved)
+            pipeline_jobs: LOADING
+            db_loader.load_role(role, approved, attempts)         [idempotent insert of only the newly-approved]
+            pipeline_jobs: COMPLETED, metrics={generated, approved, rejected, inserted, is_first_time}
+</pre>
+
+<h3>13.3 Quality gate walkthrough for one candidate</h3>
+<pre>
+validate_question(candidate, existing_bank, expected_role)
+  1. deterministic checks (role, difficulty band, paradigm, scope, dimension consistency)
+  2. deduplicator_service.check_duplicate() [exact -> normalized -> semantic]
+  3. rag_service.retrieve_context() -- must return >=1 chunk or "insufficient_rag_grounding"
+  4. Tier 1 (Gemini) LLM rubric, 12 dimensions -> score/passed/uncertain/critical_failures
+     - deterministic failure present? -> return rejected immediately (no LLM escalation spent)
+     - Tier 1 confident? -> return its result
+  5. Tier 1 uncertain -> Tier 2 (OpenAI fallback)
+     - Tier 2 confident? -> return its result
+  6. Tier 2 uncertain -> Tier 3 (Claude escalation)
+     - Tier 3 still uncertain? -> FORCE REJECT (unresolved_uncertainty_after_full_ladder)
+  7. Tier 2/3 unreachable (no credentials / quota) -> FORCE REJECT
+     (escalation_unavailable_uncertain_result) -- never fall back to Tier 1's shaky score
+  RESULT: approved = (not critical_failure) and passed and not uncertain -- ALWAYS, no exceptions
+</pre>
+
+<h2>14. Testing Strategy</h2>
+<p>133 tests total across 9 files, all run against <code>MOCK_MODE=true</code> (zero real API cost) except where a
+test file explicitly documents exercising the real (migrated) Postgres schema with obviously-synthetic role/company
+names (prefixed <code>__...Test...__</code>), always purged in <code>setUp</code>/<code>tearDown</code>. Test
+isolation for every local file the pipeline touches is enforced by
+<code>tests/__init__.py</code>, which sets <code>QUESTION_PIPELINE_DATA_DIR</code> to a fresh temp directory
+<i>before</i> any pipeline module is imported &mdash; this must be run via the package path
+(<code>python -m unittest question_pipeline.tests.test_x ...</code>); a bare <code>unittest discover</code> without
+an explicit top-level directory can bypass this bootstrap and must never be used against this project.</p>
+<table>
+<tr><th style="width:34%;">File</th><th>Focus</th></tr>
+<tr><td><code>test_pipeline.py</code></td><td>Core pipeline mechanics: dedup tiers, RAG indexing/retrieval, embedding-model invalidation.</td></tr>
+<tr class="alt"><td><code>test_quality_gate.py</code></td><td>Fail-closed enforcement: a critical failure can never be approved regardless of score; escalation ladder behavior.</td></tr>
+<tr><td><code>test_data_isolation.py</code></td><td>Proves real <code>question_pipeline/data/</code> is never touched by a correctly-invoked test run.</td></tr>
+<tr class="alt"><td><code>test_tavily_firecrawl_provider.py</code></td><td>The real research provider's discovery/extraction/fallback/failure paths.</td></tr>
+<tr><td><code>test_scope_and_generation_fixes.py</code></td><td>Regression coverage for the scope-classification bug fix and the copied-example-company-list bug fix.</td></tr>
+<tr class="alt"><td><code>test_fallback_and_json_recovery.py</code></td><td>Malformed-JSON recovery (<code>extract_json_object</code>, bounded retry) and validation-tier fallback behavior.</td></tr>
+<tr><td><code>test_db_loader.py</code></td><td>Real-DB integration tests for <code>QuestionBankLoader</code>: idempotency, provenance linkage, transaction rollback, legacy-table isolation.</td></tr>
+<tr class="alt"><td><code>test_orchestrator.py</code></td><td>Real-DB integration tests for the production orchestrator: config validation, freshness cadence, job checkpointing, first-run/no-change/incremental-refresh/quota/blocked/dry-run scenarios.</td></tr>
+<tr><td><code>test_company_rag_context.py</code></td><td>The company-RAG feature: role-only retrieval unaffected, relevant/irrelevant company context retrieval, company evidence producing COMPANY/DOMAIN scope only when genuinely justified, company research never forcing scope, company research cadence/change-detection, provenance and dedup with company-chunk citations.</td></tr>
+</table>
+
+<h2>15. Operational Reference</h2>
+<h3>15.1 Legacy CLI</h3>
+<pre>
+python -m question_pipeline.pipeline_runner --role "Data Engineer" --count 20
+python -m question_pipeline.pipeline_runner --pilot
+python -m question_pipeline.pipeline_runner --role "Data Engineer" --force
+python -m question_pipeline.pipeline_runner --status
+</pre>
+<h3>15.2 Production rollout CLI</h3>
+<pre>
+python -m question_pipeline.rollout_cli --dry-run --pilot
+python -m question_pipeline.rollout_cli --pilot --batch-size 2
+python -m question_pipeline.rollout_cli --roles "Data Scientist,Prompt Engineer" --batch-size 2
+python -m question_pipeline.rollout_cli --companies "Stripe,Netflix" --batch-size 2
+python -m question_pipeline.rollout_cli --pilot --companies "Netflix" --batch-size 1
+python -m question_pipeline.rollout_cli --all-roles --batch-size 3       # requires explicit --all-roles
+python -m question_pipeline.rollout_cli --status
+</pre>
+<h3>15.3 Key environment variables</h3>
+<table>
+<tr><th>Variable</th><th>Purpose</th></tr>
+<tr><td><code>MOCK_MODE</code></td><td>true = every provider factory returns a mock/local implementation, zero real calls.</td></tr>
+<tr class="alt"><td><code>RESEARCH_PROVIDER</code> / <code>LLM_PROVIDER</code> / <code>EMBEDDING_PROVIDER</code></td><td>Selects the real backend for each capability.</td></tr>
+<tr><td><code>FALLBACK_LLM_PROVIDER</code> / <code>ESCALATION_PROVIDER</code></td><td>Tier 2 / Tier 3 of the validation ladder.</td></tr>
+<tr class="alt"><td><code>GEMINI_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, <code>TAVILY_API_KEY</code>, <code>FIRECRAWL_API_KEY</code>, <code>PERPLEXITY_API_KEY</code></td><td>Provider credentials.</td></tr>
+<tr><td><code>QUESTION_PIPELINE_DATA_DIR</code></td><td>Test-only redirect of every local data path; never set in production.</td></tr>
+<tr class="alt"><td><code>COMPANY_CONTEXT_MIN_SIMILARITY</code></td><td>Cosine-similarity floor for company context to surface (default 0.35).</td></tr>
+<tr><td><code>REFRESH_TOP_UP_QUESTIONS_PER_ROLE</code></td><td>Batch size for an incremental refresh vs. a first-ever run (default 8).</td></tr>
+</table>
+<h3>15.4 Cadences</h3>
+<p>Role research: 30 days. Company research: 14 days. Both are DB-authoritative for the production orchestrator
+(<code>knowledge_state.next_research_at</code>) and file-authoritative for the legacy CLI (<code>state.json</code>).</p>
+
+<h2>16. Key Invariants &amp; Design Rules (Glossary)</h2>
+<div class="invariant"><b>Fail-closed, always.</b> A high LLM score can never override a deterministic or
+LLM-flagged critical failure. Enforced in <code>ValidatorService._merge()</code> and, once migration 0001 is
+applied, redundantly at the database level via <code>chk_qva_fail_closed</code>.</div>
+<div class="invariant"><b>Role invariance.</b> Experience level changes difficulty/depth, never the role. The
+generator force-overwrites <code>role</code> on every candidate regardless of what the LLM returned, and the
+validator's first deterministic check rejects any mismatch.</div>
+<div class="invariant"><b>One question, many companies.</b> <code>questions</code> holds one canonical row per
+question; <code>question_companies</code>/<code>question_domains</code>/<code>question_skills</code> are
+many-to-many joins, never physical duplication per company.</div>
+<div class="invariant"><b>Scope is content-driven, never assumed.</b> UNIVERSAL/DOMAIN/COMPANY is decided by
+<code>classify_scope()</code> from the candidate's own genuine <code>applicable_companies</code> content, not from
+generation intent or from the mere presence of company context in the RAG prompt.</div>
+<div class="invariant"><b>DB is authoritative for the production path.</b> The production orchestrator always
+re-derives dedup context and freshness state from Postgres, never from local files or in-process memory alone.</div>
+<div class="invariant"><b>Never fabricate research.</b> Both the Perplexity and Tavily+Firecrawl providers raise
+rather than substitute placeholder content when a genuine source can't be found or extracted.</div>
+<div class="invariant"><b>Provenance is always traceable.</b> Every approved question's <code>source_references</code>
+can be resolved back to a real <code>research_chunks</code> row (role or company) via
+<code>question_sources</code>, or, failing that, an honest raw citation string.</div>
+<div class="invariant"><b>Idempotent by construction.</b> Every insert path (<code>questions</code>,
+<code>research_chunks</code>, <code>research_sources</code>, <code>question_embeddings</code>,
+<code>pipeline_jobs</code>) relies on a real unique constraint plus <code>ON CONFLICT</code>, never an
+application-level "check then insert" race.</div>
+<div class="invariant"><b>Company context is evidence, never an instruction.</b> Retrieval is threshold-gated
+cosine similarity against real indexed company knowledge; an irrelevant company simply never surfaces, and its
+mere presence in a prompt never forces COMPANY/DOMAIN scope.</div>
+
+</body>
+</html>
